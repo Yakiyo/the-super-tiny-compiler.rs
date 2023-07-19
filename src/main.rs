@@ -1,5 +1,4 @@
-#[cfg(test)]
-mod tests;
+#![allow(unused)]
 
 //
 // TTTTTTTTTTTTTTTTTTTTTTTHHHHHHHHH     HHHHHHHHHEEEEEEEEEEEEEEEEEEEEEE
@@ -493,15 +492,11 @@ fn tokenizer(input: String) -> Vec<Token> {
 //
 //   [{ type: 'paren', value: '(' }, ...]   =>   { type: 'Program', body: [...] }
 //
+enum NodeKind {}
 
-// We will define our type, `node` here. Within node are pointers types to what
-// would otherwise be recursive types in Go. e.g.
-//
-// callee    node
-//
-// Would cause the Go compiler to complain about a recursive type. When we want
-// to use one of these types to pass through to a function, for example, we'd
-// use `&` as it'd be a reference. But we'll come to that a bit later on.
+struct Node {
+    kind: NodeKind,
+}
 
 fn main() {
     let code = "(add 10 (subtract 10 6))";
@@ -509,3 +504,6 @@ fn main() {
 
     println!("{tokens:#?}");
 }
+
+#[cfg(test)]
+mod tests;
