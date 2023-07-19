@@ -355,10 +355,10 @@ fn tokenizer(input: String) -> Vec<Token> {
     // A vec of tokens
     let mut tokens: Vec<Token> = Vec::new();
 
-    // Create an vec of chars to loop over the input
+    // Create an iterator of chars to loop over the input
     let mut chars = input.chars();
 
-    // We run an infinite loop. The loop exists when theres no more chars
+    // We run an infinite loop. The loop exits when theres no more chars
     // left to parse.
     loop {
         // we store the current char in a variable
