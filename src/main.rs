@@ -350,7 +350,7 @@ struct Token {
 fn tokenizer(input: String) -> Vec<Token> {
     // Append a new line to the input
     let mut input = input;
-    input.push_str("\n");
+    input.push('\n');
 
     // A vec of tokens
     let mut tokens: Vec<Token> = Vec::new();
