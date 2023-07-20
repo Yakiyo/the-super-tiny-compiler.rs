@@ -330,7 +330,7 @@
 //
 
 /// An enum of possible token kinds
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum TokenKind {
     Paren,
     Number,
@@ -338,7 +338,7 @@ enum TokenKind {
 }
 
 /// A struct containing information about a token
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Token {
     kind: TokenKind,
     value: String,
@@ -472,6 +472,10 @@ fn tokenizer(input: String) -> Vec<Token> {
             continue;
         }
 
+        if c == "\n" {
+            continue;
+        }
+
         // panic if we received an unknown string
         panic!("Received unknown character {c}");
     }
@@ -492,17 +496,149 @@ fn tokenizer(input: String) -> Vec<Token> {
 //
 //   [{ type: 'paren', value: '(' }, ...]   =>   { type: 'Program', body: [...] }
 //
-enum NodeKind {}
-
-struct Node {
-    kind: NodeKind,
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum NodeKind {
+    Program,
+    NumberLiteral,
+    CallExpression,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct Node {
+    kind: NodeKind,
+    name: Option<String>,
+    value: Option<String>,
+    body: Vec<Node>,
+    params: Vec<Node>,
+}
+
+// this reduces writing excess code in the later sections
+impl std::default::Default for Node {
+    fn default() -> Self {
+        Node {
+            kind: NodeKind::Program,
+            value: None,
+            name: None,
+            body: Vec::new(),
+            params: Vec::new(),
+        }
+    }
+}
+
+// Okay, so we define a `parser` function that accepts our vec of `tokens`.
+fn parser(tokens: Vec<Token>) -> Node {
+    let mut ast = Node::default();
+
+    let mut current: usize = 0;
+
+    let mut tokens = tokens;
+
+    while current < tokens.len() {
+        ast.body.push(walk(&mut tokens, &mut current));
+    }
+
+    ast
+}
+
+fn walk(tokens: &mut Vec<Token>, current: &mut usize) -> Node {
+    // we first grab the current index
+    let mut token = tokens.get(*current).unwrap().clone();
+
+    // We're going to split each type of token off into a different code path,
+    // starting off with `number` tokens.
+    //
+    // We test to see if we have a `number` token.
+    if token.kind == TokenKind::Number {
+        // If we have one, we'll increment `current`.
+        *current += 1;
+
+        // And we'll return a new AST node called `NumberLiteral` and setting its
+        // value to the value of our token.
+        return Node {
+            kind: NodeKind::NumberLiteral,
+            value: Some(String::from(&token.value)),
+            ..Default::default()
+        };
+    }
+
+    // Next we're going to look for CallExpressions. We start this off when we
+    // encounter an open parenthesis.
+    if token.kind == TokenKind::Paren && token.value == "(".to_string() {
+        // We'll increment `current` to skip the parenthesis since we don't care
+        // about it in our AST.
+        *current += 1;
+        token = tokens.get(*current).unwrap().clone();
+
+        // We create a base node with the type `CallExpression`, and we're going
+        // to set the name as the current token's value since the next token after
+        // the open parenthesis is the name of the function.
+        let mut n = Node {
+            kind: NodeKind::CallExpression,
+            name: Some(String::from(&token.value)),
+            ..Default::default()
+        };
+
+        // We increment `current` *again* to skip the name token.
+        *current += 1;
+        token = tokens.get(*current).unwrap().clone();
+
+        // And now we want to loop through each token that will be the `params` of
+        // our `CallExpression` until we encounter a closing parenthesis.
+        //
+        // Now this is where recursion comes in. Instead of trying to parse a
+        // potentially infinitely nested set of nodes we're going to rely on
+        // recursion to resolve things.
+        //
+        // To explain this, let's take our Lisp code. You can see that the
+        // parameters of the `add` are a number and a nested `CallExpression` that
+        // includes its own numbers.
+        //
+        //   (add 2 (subtract 4 2))
+        //
+        // You'll also notice that in our tokens array we have multiple closing
+        // parenthesis.
+        //
+        //   [
+        //     { type: 'paren',  value: '('        },
+        //     { type: 'name',   value: 'add'      },
+        //     { type: 'number', value: '2'        },
+        //     { type: 'paren',  value: '('        },
+        //     { type: 'name',   value: 'subtract' },
+        //     { type: 'number', value: '4'        },
+        //     { type: 'number', value: '2'        },
+        //     { type: 'paren',  value: ')'        }, <<< Closing parenthesis
+        //     { type: 'paren',  value: ')'        }  <<< Closing parenthesis
+        //   ]
+        //
+        // We're going to rely on the nested `walk` function to increment our
+        // `current` variable past any nested `CallExpressions`.
+
+        // So we create a `while` loop that will continue until it encounters a
+        // token with a `type` of `'paren'` and a `value` of a closing
+        // parenthesis.
+        let mut tokens = tokens.clone();
+        while token.kind != TokenKind::Paren
+            || (token.kind == TokenKind::Paren && token.value != ")")
+        {
+            n.params.push(walk(&mut tokens, current));
+            let n_token = tokens.get(*current);
+            if n_token.is_none() {
+                break;
+            }
+            token = n_token.unwrap().clone();
+        }
+
+        *current += 1;
+        return n;
+    }
+    panic!("Unknown type {:?} received. Value: {token:#?}", token.kind);
+}
 fn main() {
     let code = "(add 10 (subtract 10 6))";
     let tokens = tokenizer(code.to_string());
+    let ast = parser(tokens);
 
-    println!("{tokens:#?}");
+    println!("{ast:#?}");
 }
 
 #[cfg(test)]
