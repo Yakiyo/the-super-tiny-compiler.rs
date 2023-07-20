@@ -40,7 +40,7 @@ fn token_test_inst() -> Vec<Token> {
         Token {
             kind: TokenKind::Paren,
             value: ")".to_string(),
-        }
+        },
     ]
 }
 
