@@ -357,22 +357,16 @@ fn tokenizer(input: String) -> Vec<Token> {
     // Create an iterator of chars to loop over the input
     let mut chars = input.chars();
 
-    // We run an infinite loop. The loop exits when theres no more chars
-    // left to parse.
-    loop {
-        // we store the current char in a variable
-        let next = chars.next();
-        if next.is_none() {
-            break;
-        }
-        let mut c = next.unwrap().to_string();
+    // We keep looping until theres no more chars to parse;
+    while let Some(c) = chars.next() {
+        let mut c = c.clone();
 
         // The first thing we want to check for is an open parenthesis. This will
         // later be used for `CallExpressions` but for now we only care about the
         // character.
         //
         // We check to see if we have an open parenthesis:
-        if c == "(" {
+        if c == '(' {
             // If we do, we append a new token to our slice with the kind `paren`
             // and set the value to an open parenthesis.
             tokens.push(Token {
@@ -387,7 +381,7 @@ fn tokenizer(input: String) -> Vec<Token> {
         // Next we're going to check for a closing parenthesis. We do the same exact
         // thing as before: Check for a closing parenthesis, add a new token,
         // and `continue`.
-        if c == ")" {
+        if c == ')' {
             tokens.push(Token {
                 kind: TokenKind::Paren,
                 value: ")".to_string(),
@@ -402,7 +396,12 @@ fn tokenizer(input: String) -> Vec<Token> {
         //
         // So here we're just going to test for existence and if it does exist we're
         // going to just `continue` on.
-        if c.is_empty() {
+        if c.to_string().is_empty() || c == ' ' {
+            continue;
+        }
+
+        // skip line breaks too
+        if c.to_string() == "\n" {
             continue;
         }
 
@@ -417,9 +416,9 @@ fn tokenizer(input: String) -> Vec<Token> {
         // So we start this off when we encounter the first number in a sequence.
 
         // We first write a small closure to check wether an str is numeric or not
-        let is_numeric = |x: &str| x.chars().all(char::is_numeric);
+        // let is_numeric = |x: &str| x.chars().all(char::is_numeric);
 
-        if is_numeric(&c) {
+        if c.is_numeric() {
             // We're going to create a `value` string that we are going to append
             // characters to.
             let mut value = String::new();
@@ -427,14 +426,23 @@ fn tokenizer(input: String) -> Vec<Token> {
             // Then we're going to loop through each character in the sequence until
             // we encounter a character that is not a number, pushing each character
             // that is a number to our `value` and incrementing `current` as we go.
-            while is_numeric(&c) {
-                value.push_str(&c);
-                // current += 1;
-                let next = chars.next();
-                if next.is_none() {
+            while c.is_numeric() {
+                value.push(c);
+                // check if any next value exists, and if it does, if its a number or not
+                // If its not a number, we break from the loop. otherwise continue as we were doing.
+                //
+                // We clone the iterator and `peek` at the next value. Using `next` on the `chars` iterator would
+                // consume the current iter in case the next value is not a number, rather a string.
+                // So we use this to sort of peek.
+                // This idea was taken from [Boshen's guide on js parsers in rust](https://boshen.github.io/javascript-parser-in-rust/docs/lexer/#peek)
+                if !chars
+                    .clone()
+                    .next()
+                    .map_or_else(|| false, |x| x.is_numeric())
+                {
                     break;
                 }
-                c = next.unwrap().to_string();
+                c = chars.next().unwrap();
             }
 
             // After that we append our `number` token to the `tokens` slice.
@@ -455,24 +463,18 @@ fn tokenizer(input: String) -> Vec<Token> {
         //    Name token
         //
 
-        // Again we define a small closure to determine wether a string is alphabet or not
-        let is_alpha = |x: &str| x.chars().all(|z| z.is_ascii_alphabetic());
-        if is_alpha(&c) {
+        if c.is_ascii_alphabetic() {
             let mut value = String::new();
 
-            while is_alpha(&c) {
-                value.push_str(&c);
-                c = chars.next().unwrap().to_string();
+            while c.is_ascii_alphabetic() {
+                value.push(c);
+                c = chars.next().unwrap();
             }
 
             tokens.push(Token {
                 kind: TokenKind::Name,
                 value,
             });
-            continue;
-        }
-
-        if c == "\n" {
             continue;
         }
 

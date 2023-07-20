@@ -37,6 +37,10 @@ fn token_test_inst() -> Vec<Token> {
             kind: TokenKind::Paren,
             value: ")".to_string(),
         },
+        Token {
+            kind: TokenKind::Paren,
+            value: ")".to_string(),
+        }
     ]
 }
 
